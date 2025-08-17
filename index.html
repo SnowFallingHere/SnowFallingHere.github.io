@@ -751,12 +751,28 @@
 
         // 初始化
         function init() {
+            // 强制初始状态为未认证，确保每次刷新都能正确处理
+            state.isAuthenticated = false;
+            elements.authScreen.style.display = 'flex';
+            elements.appScreen.style.display = 'none';
+            
             // 检查本地存储中是否有已认证状态
             const savedAuth = localStorage.getItem('ean13Auth');
-            if (savedAuth && JSON.parse(savedAuth).isAuthenticated) {
-                state.isAuthenticated = true;
-                showAppScreen();
-                loadDataFromStorage(); // 加载已保存的数据
+            if (savedAuth) {
+                try {
+                    const authData = JSON.parse(savedAuth);
+                    if (authData.isAuthenticated) {
+                        // 直接加载数据并显示应用界面
+                        state.isAuthenticated = true;
+                        showAppScreen();
+                        loadDataFromStorage();
+                        initScanner();
+                    }
+                } catch (e) {
+                    console.error("解析认证数据失败:", e);
+                    // 清除损坏的认证数据
+                    localStorage.removeItem('ean13Auth');
+                }
             }
             
             // 绑定事件处理程序
@@ -798,6 +814,7 @@
                 
                 // 显示应用界面
                 showAppScreen();
+                loadDataFromStorage(); // 登录成功后立即加载数据
                 initScanner(); // 初始化扫描器
             } else {
                 // 验证失败
@@ -828,31 +845,44 @@
             }
         }
 
-        // 处理退出登录
+        // 处理退出登录 - 完全重构以确保能正确退出
         function handleLogout() {
             if (confirm('确定要退出登录吗？当前数据会被保存。')) {
                 // 保存当前数据
                 saveDataToStorage();
                 
-                // 重置认证状态
+                // 停止并销毁扫描器
+                if (window.Quagga) {
+                    try {
+                        Quagga.stop();
+                        Quagga.destroy();
+                    } catch (e) {
+                        console.error("销毁扫描器失败:", e);
+                    }
+                }
+                
+                // 重置应用状态
                 state.isAuthenticated = false;
+                state.isScanning = true;
+                
+                // 清除认证状态
                 localStorage.setItem('ean13Auth', JSON.stringify({
                     isAuthenticated: false
                 }));
                 
-                // 停止扫描器
-                if (Quagga) {
-                    Quagga.stop();
-                    Quagga.destroy();
-                }
+                // 强制切换到登录界面
+                elements.authScreen.style.display = 'flex';
+                elements.appScreen.style.display = 'none';
                 
-                // 显示认证界面
-                showAuthScreen();
+                // 清空密码输入框
                 elements.passwordInput.value = '';
+                
+                // 重置状态显示
+                elements.status.textContent = "已退出登录";
             }
         }
 
-        // 显示/隐藏界面
+        // 显示/隐藏界面 - 确保显示状态正确
         function showAuthScreen() {
             elements.authScreen.style.display = 'flex';
             elements.appScreen.style.display = 'none';
@@ -866,6 +896,15 @@
         // 初始化扫描器
         function initScanner() {
             if (!state.isAuthenticated) return;
+            
+            // 如果扫描器已存在，先销毁
+            if (window.Quagga) {
+                try {
+                    Quagga.destroy();
+                } catch (e) {
+                    console.error("销毁旧扫描器失败:", e);
+                }
+            }
             
             Quagga.init({
                 inputStream: {
@@ -1122,16 +1161,26 @@
             }
         }
 
-        // 从本地存储加载数据
+        // 从本地存储加载数据 - 增强版，确保数据正确恢复
         function loadDataFromStorage() {
+            // 清除现有状态
+            state.totalCount = 0;
+            state.categories.bag1.count = 0;
+            state.categories.bag1.lastScan = null;
+            state.categories.bag1.scanRecords = [];
+            state.categories.bag2.count = 0;
+            state.categories.bag2.lastScan = null;
+            state.categories.bag2.scanRecords = [];
+            
             const savedData = localStorage.getItem('ean13ScanData');
             if (savedData) {
                 try {
                     const data = JSON.parse(savedData);
+                    console.log("加载的数据:", data);
                     
                     // 恢复总计数
-                    if (data.totalCount !== undefined) {
-                        state.totalCount = data.totalCount;
+                    if (data.totalCount !== undefined && !isNaN(data.totalCount)) {
+                        state.totalCount = Number(data.totalCount);
                         updateTotalCounter();
                     }
                     
@@ -1160,24 +1209,40 @@
                         }
                     }
                     
-                    elements.status.textContent = "已加载历史数据";
+                    elements.status.textContent = "已成功加载历史数据";
                 } catch (e) {
                     console.error("加载数据失败:", e);
-                    elements.status.textContent = "加载历史数据失败";
+                    elements.status.textContent = "加载历史数据失败，已重置为初始状态";
+                    // 清除损坏的数据
+                    localStorage.removeItem('ean13ScanData');
                 }
+            } else {
+                elements.status.textContent = "未找到历史数据，使用初始状态";
             }
         }
 
-        // 保存数据到本地存储
+        // 保存数据到本地存储 - 增强版，确保数据正确保存
         function saveDataToStorage() {
             if (state.isAuthenticated) {
                 try {
                     const data = {
                         totalCount: state.totalCount,
-                        categories: state.categories,
+                        categories: {
+                            bag1: {
+                                count: state.categories.bag1.count,
+                                lastScan: state.categories.bag1.lastScan,
+                                scanRecords: state.categories.bag1.scanRecords
+                            },
+                            bag2: {
+                                count: state.categories.bag2.count,
+                                lastScan: state.categories.bag2.lastScan,
+                                scanRecords: state.categories.bag2.scanRecords
+                            }
+                        },
                         lastUpdated: new Date().toISOString()
                     };
                     localStorage.setItem('ean13ScanData', JSON.stringify(data));
+                    console.log("数据已保存:", data);
                 } catch (e) {
                     console.error("保存数据失败:", e);
                     elements.status.textContent = "数据保存失败";
