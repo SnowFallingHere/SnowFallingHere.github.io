@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>条形码自动扫描计数器</title>
+    <title>条形码分类扫描计数器</title>
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -20,7 +20,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             padding: 20px;
             color: white;
             overflow-x: hidden;
@@ -30,10 +29,12 @@
             text-align: center;
             margin-bottom: 20px;
             animation: fadeIn 1s ease-out;
+            width: 100%;
+            max-width: 500px;
         }
         
         h1 {
-            font-size: 2.2rem;
+            font-size: 2rem;
             margin-bottom: 10px;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
             background: linear-gradient(to right, #ff7e5f, #feb47b);
@@ -63,6 +64,7 @@
             overflow: hidden;
             border: 1px solid rgba(255, 255, 255, 0.15);
             animation: slideUp 0.8s ease-out;
+            margin-bottom: 20px;
         }
         
         .scanner-section {
@@ -239,6 +241,98 @@
             line-height: 1.5;
         }
         
+        /* 新增统计区域样式 */
+        .stats-section {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            border-radius: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 20px;
+        }
+        
+        .stats-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+        }
+        
+        .stats-title i {
+            margin-right: 8px;
+            color: #ffdd57;
+        }
+        
+        .category-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .category-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            transition: transform 0.3s ease;
+        }
+        
+        .category-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .category-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        
+        .category-name span {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .category-count {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .category-barcode {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-bottom: 8px;
+            font-family: monospace;
+        }
+        
+        .last-scan {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+        }
+        
+        .last-scan i {
+            margin-right: 5px;
+            font-size: 0.8rem;
+        }
+        
         .footer {
             text-align: center;
             padding: 20px;
@@ -299,14 +393,20 @@
             .instructions {
                 grid-template-columns: 1fr;
             }
+            
+            .category-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1><i class="fas fa-barcode"></i> 条形码自动扫描计数器</h1>
+        <h1><i class="fas fa-barcode"></i> 条形码分类扫描计数器</h1>
         <div class="subtitle">
-            自动扫描条形码(000000000001)，每次扫描计数加1。支持手动调整计数值，计数最低为0。
+            自动识别类别A/B条形码，分别统计计数和时间。支持手动调整，计数最低为0。
         </div>
     </div>
     
@@ -346,13 +446,49 @@
         </div>
     </div>
     
+    <!-- 新增统计区域 -->
+    <div class="stats-section">
+        <div class="stats-title">
+            <i class="fas fa-chart-pie"></i> 分类扫描统计
+        </div>
+        <div class="category-stats">
+            <!-- 类别A统计卡片 -->
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-name">
+                        <span style="background-color: #4cd964;"></span>类别A
+                    </div>
+                    <div class="category-count" id="count-a">0</div>
+                </div>
+                <div class="category-barcode">条形码: 20702200002003</div>
+                <div class="last-scan" id="last-a">
+                    <i class="far fa-clock"></i> 未扫描
+                </div>
+            </div>
+            
+            <!-- 类别B统计卡片 -->
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-name">
+                        <span style="background-color: #ff9500;"></span>类别B
+                    </div>
+                    <div class="category-count" id="count-b">0</div>
+                </div>
+                <div class="category-barcode">条形码: 20702200002004</div>
+                <div class="last-scan" id="last-b">
+                    <i class="far fa-clock"></i> 未扫描
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div class="footer">
         <p>使用说明</p>
         <div class="instructions">
-            <div class="instruction-item"><i class="fas fa-qrcode"></i> 将条形码置于扫描框内自动计数</div>
+            <div class="instruction-item"><i class="fas fa-qrcode"></i> 自动识别类别A/B条形码</div>
             <div class="instruction-item"><i class="fas fa-pause-circle"></i> 点击"暂停扫描"可停止自动扫描</div>
-            <div class="instruction-item"><i class="fas fa-plus-circle"></i> "+"按钮手动增加计数</div>
-            <div class="instruction-item"><i class="fas fa-minus-circle"></i> "-"按钮手动减少计数</div>
+            <div class="instruction-item"><i class="fas fa-plus-circle"></i> "+"按钮手动增加总计数</div>
+            <div class="instruction-item"><i class="fas fa-minus-circle"></i> "-"按钮手动减少总计数</div>
         </div>
     </div>
 
@@ -365,11 +501,31 @@
         const resetButton = document.getElementById('resetBtn');
         const statusElement = document.getElementById('status');
         
+        // 分类统计元素
+        const countAElement = document.getElementById('count-a');
+        const countBElement = document.getElementById('count-b');
+        const lastAElement = document.getElementById('last-a');
+        const lastBElement = document.getElementById('last-b');
+        
         // 计数器状态
-        let count = 0;
+        let totalCount = 0;
         let isScanning = true;
         let lastScannedCode = null;
         let lastScanTime = 0;
+        
+        // 分类配置（可根据实际需求修改条形码）
+        const categories = {
+            A: {
+                code: "20702200002003",
+                count: 0,
+                lastScan: null
+            },
+            B: {
+                code: "20702200002004", // 假设您输入的第二个条形码为该值
+                count: 0,
+                lastScan: null
+            }
+        };
         
         // 初始化QuaggaJS
         function initScanner() {
@@ -401,7 +557,7 @@
                     pauseButton.disabled = true;
                     return;
                 }
-                statusElement.textContent = "扫描已就绪，正在自动扫描条形码...";
+                statusElement.textContent = "扫描已就绪，正在自动识别类别A/B条形码...";
                 Quagga.start();
                 
                 // 检测到条形码时的处理
@@ -409,21 +565,39 @@
                     if (!isScanning) return;
                     
                     const code = result.codeResult.code;
-                    const currentTime = new Date().getTime();
+                    const currentTime = new Date();
+                    const timeStr = currentTime.toLocaleTimeString(); // 格式化时间为本地时间
                     
-                    // 防止连续扫描同一个条形码（1秒内忽略相同条形码）
-                    if (code === lastScannedCode && (currentTime - lastScanTime) < 1000) {
+                    // 防止1秒内连续扫描同一个条形码
+                    if (code === lastScannedCode && (currentTime.getTime() - lastScanTime) < 1000) {
                         return;
                     }
                     
                     lastScannedCode = code;
-                    lastScanTime = currentTime;
+                    lastScanTime = currentTime.getTime();
                     
-                    statusElement.textContent = `扫描成功: ${code}`;
+                    // 判断类别并更新统计
+                    let category = null;
+                    if (code === categories.A.code) {
+                        category = "A";
+                        categories.A.count++;
+                        categories.A.lastScan = timeStr;
+                        updateCategoryDisplay("A");
+                        statusElement.textContent = `扫描成功: 类别A (${code})`;
+                    } else if (code === categories.B.code) {
+                        category = "B";
+                        categories.B.count++;
+                        categories.B.lastScan = timeStr;
+                        updateCategoryDisplay("B");
+                        statusElement.textContent = `扫描成功: 类别B (${code})`;
+                    } else {
+                        statusElement.textContent = `未识别条形码: ${code}`;
+                        return; // 非目标条形码不计数
+                    }
                     
-                    // 增加计数
-                    count++;
-                    updateCounter();
+                    // 更新总计数
+                    totalCount++;
+                    updateTotalCounter();
                     
                     // 添加动画效果
                     counterElement.classList.add('pulse');
@@ -434,34 +608,49 @@
             });
         }
         
-        // 更新计数器显示
-        function updateCounter() {
-            counterElement.textContent = count;
+        // 更新总计数显示
+        function updateTotalCounter() {
+            counterElement.textContent = totalCount;
         }
         
-        // 增加计数
+        // 更新分类统计显示
+        function updateCategoryDisplay(category) {
+            if (category === "A") {
+                countAElement.textContent = categories.A.count;
+                lastAElement.innerHTML = `<i class="far fa-clock"></i> 最近: ${categories.A.lastScan}`;
+                countAElement.classList.add('pulse');
+                setTimeout(() => countAElement.classList.remove('pulse'), 500);
+            } else if (category === "B") {
+                countBElement.textContent = categories.B.count;
+                lastBElement.innerHTML = `<i class="far fa-clock"></i> 最近: ${categories.B.lastScan}`;
+                countBElement.classList.add('pulse');
+                setTimeout(() => countBElement.classList.remove('pulse'), 500);
+            }
+        }
+        
+        // 手动增加总计数
         incrementButton.addEventListener('click', () => {
-            count++;
-            updateCounter();
-            statusElement.textContent = "已手动增加计数";
+            totalCount++;
+            updateTotalCounter();
+            statusElement.textContent = "已手动增加总计数";
             counterElement.classList.add('pulse');
             setTimeout(() => {
                 counterElement.classList.remove('pulse');
             }, 500);
         });
         
-        // 减少计数（不低于0）
+        // 手动减少总计数（不低于0）
         decrementButton.addEventListener('click', () => {
-            if (count > 0) {
-                count--;
-                updateCounter();
-                statusElement.textContent = "已手动减少计数";
+            if (totalCount > 0) {
+                totalCount--;
+                updateTotalCounter();
+                statusElement.textContent = "已手动减少总计数";
                 counterElement.classList.add('pulse');
                 setTimeout(() => {
                     counterElement.classList.remove('pulse');
                 }, 500);
             } else {
-                statusElement.textContent = "计数不能低于0";
+                statusElement.textContent = "总计数不能低于0";
             }
         });
         
@@ -471,18 +660,32 @@
             
             if (isScanning) {
                 pauseButton.innerHTML = '<i class="fas fa-pause"></i> 暂停扫描';
-                statusElement.textContent = "扫描已恢复，正在自动扫描条形码...";
+                statusElement.textContent = "扫描已恢复，正在自动识别类别A/B条形码...";
             } else {
                 pauseButton.innerHTML = '<i class="fas fa-play"></i> 继续扫描';
                 statusElement.textContent = "扫描已暂停";
             }
         });
         
-        // 重置计数
+        // 重置所有计数
         resetButton.addEventListener('click', () => {
-            count = 0;
-            updateCounter();
-            statusElement.textContent = "计数已重置为0";
+            // 重置总计数
+            totalCount = 0;
+            updateTotalCounter();
+            
+            // 重置分类计数
+            categories.A.count = 0;
+            categories.A.lastScan = null;
+            categories.B.count = 0;
+            categories.B.lastScan = null;
+            
+            // 更新显示
+            countAElement.textContent = "0";
+            countBElement.textContent = "0";
+            lastAElement.innerHTML = '<i class="far fa-clock"></i> 未扫描';
+            lastBElement.innerHTML = '<i class="far fa-clock"></i> 未扫描';
+            
+            statusElement.textContent = "所有计数已重置为0";
             counterElement.classList.add('pulse');
             setTimeout(() => {
                 counterElement.classList.remove('pulse');
