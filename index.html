@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>条形码分类扫描计数器</title>
+    <title>EAN13条形码分类扫描计数器</title>
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入Excel处理库 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -34,7 +36,7 @@
         }
         
         h1 {
-            font-size: 2rem;
+            font-size: 1.8rem;
             margin-bottom: 10px;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
             background: linear-gradient(to right, #ff7e5f, #feb47b);
@@ -43,13 +45,13 @@
         }
         
         .subtitle {
-            font-size: 1rem;
+            font-size: 0.95rem;
             opacity: 0.9;
             max-width: 500px;
             line-height: 1.6;
             margin-top: 10px;
             background: rgba(0, 0, 0, 0.2);
-            padding: 10px 20px;
+            padding: 10px 15px;
             border-radius: 20px;
             backdrop-filter: blur(5px);
         }
@@ -124,7 +126,7 @@
         
         .scan-text {
             margin-top: 20px;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
             text-align: center;
             color: #fff;
@@ -137,7 +139,7 @@
         }
         
         .counter-display {
-            font-size: 5.5rem;
+            font-size: 5rem;
             font-weight: bold;
             margin: 20px 0;
             text-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
@@ -195,6 +197,13 @@
             color: white;
         }
         
+        .btn-export {
+            background: linear-gradient(to right, #4CAF50, #8BC34A);
+            color: white;
+            margin: 0 auto 15px;
+            display: block;
+        }
+        
         .counter-controls {
             display: flex;
             justify-content: center;
@@ -241,7 +250,7 @@
             line-height: 1.5;
         }
         
-        /* 新增统计区域样式 */
+        /* 统计区域样式 */
         .stats-section {
             width: 100%;
             max-width: 500px;
@@ -294,7 +303,7 @@
         }
         
         .category-name {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -314,11 +323,19 @@
             color: #fff;
         }
         
+        .category-spec {
+            font-size: 0.9rem;
+            margin: 8px 0;
+            padding-left: 20px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
         .category-barcode {
             font-size: 0.85rem;
             opacity: 0.8;
             margin-bottom: 8px;
             font-family: monospace;
+            padding-left: 20px;
         }
         
         .last-scan {
@@ -326,6 +343,7 @@
             opacity: 0.9;
             display: flex;
             align-items: center;
+            padding-left: 20px;
         }
         
         .last-scan i {
@@ -360,7 +378,6 @@
             font-size: 0.85rem;
         }
         
-        /* 动画效果 */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -371,10 +388,9 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
-        /* 响应式调整 */
         @media (max-width: 500px) {
             .counter-display {
-                font-size: 4.5rem;
+                font-size: 4rem;
             }
             
             .scanner-section {
@@ -387,7 +403,7 @@
             }
             
             h1 {
-                font-size: 1.8rem;
+                font-size: 1.6rem;
             }
             
             .instructions {
@@ -404,9 +420,9 @@
 </head>
 <body>
     <div class="header">
-        <h1><i class="fas fa-barcode"></i> 条形码分类扫描计数器</h1>
+        <h1><i class="fas fa-barcode"></i> EAN13条形码分类扫描计数器</h1>
         <div class="subtitle">
-            自动识别类别A/B条形码，分别统计计数和时间。支持手动调整，计数最低为0。
+            自动识别EAN13条形码，统计金远梦购物袋不同规格的扫描数量和时间，支持Excel导出
         </div>
     </div>
     
@@ -417,7 +433,7 @@
                 <div class="scan-frame">
                     <div class="scanner-line"></div>
                 </div>
-                <div class="scan-text">对准条形码进行扫描</div>
+                <div class="scan-text">对准EAN13条形码进行扫描</div>
             </div>
         </div>
         
@@ -446,36 +462,43 @@
         </div>
     </div>
     
-    <!-- 新增统计区域 -->
+    <!-- 导出按钮 -->
+    <button class="btn btn-export" id="exportBtn">
+        <i class="fas fa-file-excel"></i> 导出扫描记录到Excel
+    </button>
+    
+    <!-- 分类统计区域 -->
     <div class="stats-section">
         <div class="stats-title">
-            <i class="fas fa-chart-pie"></i> 分类扫描统计
+            <i class="fas fa-chart-pie"></i> 购物袋规格扫描统计
         </div>
         <div class="category-stats">
-            <!-- 类别A统计卡片 -->
+            <!-- 类别1：金远梦购物袋0.03x(40+18)x60cm -->
             <div class="category-card">
                 <div class="category-header">
                     <div class="category-name">
-                        <span style="background-color: #4cd964;"></span>类别A
+                        <span style="background-color: #4cd964;"></span>金远梦购物袋
                     </div>
-                    <div class="category-count" id="count-a">0</div>
+                    <div class="category-count" id="count-bag1">0</div>
                 </div>
-                <div class="category-barcode">条形码: 20702200002003</div>
-                <div class="last-scan" id="last-a">
+                <div class="category-spec">规格: 0.03x(40+18)x60cm</div>
+                <div class="category-barcode">EAN13: 7022000020034</div>
+                <div class="last-scan" id="last-bag1">
                     <i class="far fa-clock"></i> 未扫描
                 </div>
             </div>
             
-            <!-- 类别B统计卡片 -->
+            <!-- 类别2：金远梦购物袋0.02x(28+12)x44cm -->
             <div class="category-card">
                 <div class="category-header">
                     <div class="category-name">
-                        <span style="background-color: #ff9500;"></span>类别B
+                        <span style="background-color: #ff9500;"></span>金远梦购物袋
                     </div>
-                    <div class="category-count" id="count-b">0</div>
+                    <div class="category-count" id="count-bag2">0</div>
                 </div>
-                <div class="category-barcode">条形码: 20702200002004</div>
-                <div class="last-scan" id="last-b">
+                <div class="category-spec">规格: 0.02x(28+12)x44cm</div>
+                <div class="category-barcode">EAN13: 7022000020041</div> <!-- 已调整为新条形码 -->
+                <div class="last-scan" id="last-bag2">
                     <i class="far fa-clock"></i> 未扫描
                 </div>
             </div>
@@ -485,8 +508,8 @@
     <div class="footer">
         <p>使用说明</p>
         <div class="instructions">
-            <div class="instruction-item"><i class="fas fa-qrcode"></i> 自动识别类别A/B条形码</div>
-            <div class="instruction-item"><i class="fas fa-pause-circle"></i> 点击"暂停扫描"可停止自动扫描</div>
+            <div class="instruction-item"><i class="fas fa-qrcode"></i> 支持EAN13格式条形码扫描</div>
+            <div class="instruction-item"><i class="fas fa-file-excel"></i> 点击导出按钮保存扫描记录</div>
             <div class="instruction-item"><i class="fas fa-plus-circle"></i> "+"按钮手动增加总计数</div>
             <div class="instruction-item"><i class="fas fa-minus-circle"></i> "-"按钮手动减少总计数</div>
         </div>
@@ -500,12 +523,13 @@
         const pauseButton = document.getElementById('pauseBtn');
         const resetButton = document.getElementById('resetBtn');
         const statusElement = document.getElementById('status');
+        const exportButton = document.getElementById('exportBtn');
         
         // 分类统计元素
-        const countAElement = document.getElementById('count-a');
-        const countBElement = document.getElementById('count-b');
-        const lastAElement = document.getElementById('last-a');
-        const lastBElement = document.getElementById('last-b');
+        const countBag1Element = document.getElementById('count-bag1');
+        const countBag2Element = document.getElementById('count-bag2');
+        const lastBag1Element = document.getElementById('last-bag1');
+        const lastBag2Element = document.getElementById('last-bag2');
         
         // 计数器状态
         let totalCount = 0;
@@ -513,21 +537,27 @@
         let lastScannedCode = null;
         let lastScanTime = 0;
         
-        // 分类配置（可根据实际需求修改条形码）
+        // 购物袋类别配置（已调整条形码）
         const categories = {
-            A: {
-                code: "20702200002003",
+            bag1: {
+                code: "7022000020034", // 保持不变
+                name: "金远梦购物袋",
+                spec: "0.03x(40+18)x60cm",
                 count: 0,
-                lastScan: null
+                lastScan: null,
+                scanRecords: [] // 存储所有扫描时间记录
             },
-            B: {
-                code: "20702200002004", // 假设您输入的第二个条形码为该值
+            bag2: {
+                code: "7022000020041", // 已调整为新条形码
+                name: "金远梦购物袋",
+                spec: "0.02x(28+12)x44cm",
                 count: 0,
-                lastScan: null
+                lastScan: null,
+                scanRecords: [] // 存储所有扫描时间记录
             }
         };
         
-        // 初始化QuaggaJS
+        // 初始化QuaggaJS（支持EAN13）
         function initScanner() {
             Quagga.init({
                 inputStream: {
@@ -546,7 +576,12 @@
                 },
                 numOfWorkers: 4,
                 decoder: {
-                    readers: ["ean_reader"] // 使用EAN条形码读取器
+                    readers: ["ean_reader"], // ean_reader原生支持EAN13格式
+                    debug: { showCanvas: false },
+                    ean_13: {
+                        minLength: 13,
+                        maxLength: 13 // 强制EAN13的13位长度
+                    }
                 },
                 locate: true
             }, function(err) {
@@ -557,7 +592,7 @@
                     pauseButton.disabled = true;
                     return;
                 }
-                statusElement.textContent = "扫描已就绪，正在自动识别类别A/B条形码...";
+                statusElement.textContent = "扫描已就绪，支持EAN13条形码...";
                 Quagga.start();
                 
                 // 检测到条形码时的处理
@@ -566,7 +601,8 @@
                     
                     const code = result.codeResult.code;
                     const currentTime = new Date();
-                    const timeStr = currentTime.toLocaleTimeString(); // 格式化时间为本地时间
+                    const timeStr = currentTime.toLocaleTimeString(); // 时分秒
+                    const fullTimeStr = currentTime.toLocaleString(); // 完整日期时间
                     
                     // 防止1秒内连续扫描同一个条形码
                     if (code === lastScannedCode && (currentTime.getTime() - lastScanTime) < 1000) {
@@ -576,22 +612,24 @@
                     lastScannedCode = code;
                     lastScanTime = currentTime.getTime();
                     
-                    // 判断类别并更新统计
+                    // 判断购物袋类别（EAN13匹配）
                     let category = null;
-                    if (code === categories.A.code) {
-                        category = "A";
-                        categories.A.count++;
-                        categories.A.lastScan = timeStr;
-                        updateCategoryDisplay("A");
-                        statusElement.textContent = `扫描成功: 类别A (${code})`;
-                    } else if (code === categories.B.code) {
-                        category = "B";
-                        categories.B.count++;
-                        categories.B.lastScan = timeStr;
-                        updateCategoryDisplay("B");
-                        statusElement.textContent = `扫描成功: 类别B (${code})`;
+                    if (code === categories.bag1.code) {
+                        category = "bag1";
+                        categories.bag1.count++;
+                        categories.bag1.lastScan = timeStr;
+                        categories.bag1.scanRecords.push(fullTimeStr); // 记录完整时间
+                        updateCategoryDisplay(category);
+                        statusElement.textContent = `扫描成功: ${categories.bag1.spec}`;
+                    } else if (code === categories.bag2.code) {
+                        category = "bag2";
+                        categories.bag2.count++;
+                        categories.bag2.lastScan = timeStr;
+                        categories.bag2.scanRecords.push(fullTimeStr); // 记录完整时间
+                        updateCategoryDisplay(category);
+                        statusElement.textContent = `扫描成功: ${categories.bag2.spec}`;
                     } else {
-                        statusElement.textContent = `未识别条形码: ${code}`;
+                        statusElement.textContent = `未识别EAN13条形码: ${code}`;
                         return; // 非目标条形码不计数
                     }
                     
@@ -599,7 +637,7 @@
                     totalCount++;
                     updateTotalCounter();
                     
-                    // 添加动画效果
+                    // 添加数字动画效果
                     counterElement.classList.add('pulse');
                     setTimeout(() => {
                         counterElement.classList.remove('pulse');
@@ -615,18 +653,75 @@
         
         // 更新分类统计显示
         function updateCategoryDisplay(category) {
-            if (category === "A") {
-                countAElement.textContent = categories.A.count;
-                lastAElement.innerHTML = `<i class="far fa-clock"></i> 最近: ${categories.A.lastScan}`;
-                countAElement.classList.add('pulse');
-                setTimeout(() => countAElement.classList.remove('pulse'), 500);
-            } else if (category === "B") {
-                countBElement.textContent = categories.B.count;
-                lastBElement.innerHTML = `<i class="far fa-clock"></i> 最近: ${categories.B.lastScan}`;
-                countBElement.classList.add('pulse');
-                setTimeout(() => countBElement.classList.remove('pulse'), 500);
+            if (category === "bag1") {
+                countBag1Element.textContent = categories.bag1.count;
+                lastBag1Element.innerHTML = `<i class="far fa-clock"></i> 最近: ${categories.bag1.lastScan}`;
+                countBag1Element.classList.add('pulse');
+                setTimeout(() => countBag1Element.classList.remove('pulse'), 500);
+            } else if (category === "bag2") {
+                countBag2Element.textContent = categories.bag2.count;
+                lastBag2Element.innerHTML = `<i class="far fa-clock"></i> 最近: ${categories.bag2.lastScan}`;
+                countBag2Element.classList.add('pulse');
+                setTimeout(() => countBag2Element.classList.remove('pulse'), 500);
             }
         }
+        
+        // 导出扫描记录到Excel
+        exportButton.addEventListener('click', () => {
+            // 创建工作簿
+            const wb = XLSX.utils.book_new();
+            
+            // 为每个类别创建一个工作表
+            // 类别1数据
+            const bag1Data = categories.bag1.scanRecords.map((time, index) => ({
+                序号: index + 1,
+                条形码: categories.bag1.code,
+                规格: categories.bag1.spec,
+                扫描时间: time
+            }));
+            
+            // 如果没有数据，添加一行提示
+            if (bag1Data.length === 0) {
+                bag1Data.push({
+                    序号: "",
+                    条形码: categories.bag1.code,
+                    规格: categories.bag1.spec,
+                    扫描时间: "无扫描记录"
+                });
+            }
+            
+            // 创建工作表并添加到工作簿
+            const ws1 = XLSX.utils.json_to_sheet(bag1Data);
+            XLSX.utils.book_append_sheet(wb, ws1, `规格1_${categories.bag1.spec.substring(0, 10)}`);
+            
+            // 类别2数据
+            const bag2Data = categories.bag2.scanRecords.map((time, index) => ({
+                序号: index + 1,
+                条形码: categories.bag2.code,
+                规格: categories.bag2.spec,
+                扫描时间: time
+            }));
+            
+            // 如果没有数据，添加一行提示
+            if (bag2Data.length === 0) {
+                bag2Data.push({
+                    序号: "",
+                    条形码: categories.bag2.code,
+                    规格: categories.bag2.spec,
+                    扫描时间: "无扫描记录"
+                });
+            }
+            
+            // 创建工作表并添加到工作簿
+            const ws2 = XLSX.utils.json_to_sheet(bag2Data);
+            XLSX.utils.book_append_sheet(wb, ws2, `规格2_${categories.bag2.spec.substring(0, 10)}`);
+            
+            // 生成Excel文件并下载
+            const fileName = `购物袋扫描记录_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            statusElement.textContent = `已导出 ${categories.bag1.scanRecords.length + categories.bag2.scanRecords.length} 条扫描记录到Excel`;
+        });
         
         // 手动增加总计数
         incrementButton.addEventListener('click', () => {
@@ -660,7 +755,7 @@
             
             if (isScanning) {
                 pauseButton.innerHTML = '<i class="fas fa-pause"></i> 暂停扫描';
-                statusElement.textContent = "扫描已恢复，正在自动识别类别A/B条形码...";
+                statusElement.textContent = "扫描已恢复，支持EAN13条形码...";
             } else {
                 pauseButton.innerHTML = '<i class="fas fa-play"></i> 继续扫描';
                 statusElement.textContent = "扫描已暂停";
@@ -673,19 +768,22 @@
             totalCount = 0;
             updateTotalCounter();
             
-            // 重置分类计数
-            categories.A.count = 0;
-            categories.A.lastScan = null;
-            categories.B.count = 0;
-            categories.B.lastScan = null;
+            // 重置分类计数和记录
+            categories.bag1.count = 0;
+            categories.bag1.lastScan = null;
+            categories.bag1.scanRecords = [];
+            
+            categories.bag2.count = 0;
+            categories.bag2.lastScan = null;
+            categories.bag2.scanRecords = [];
             
             // 更新显示
-            countAElement.textContent = "0";
-            countBElement.textContent = "0";
-            lastAElement.innerHTML = '<i class="far fa-clock"></i> 未扫描';
-            lastBElement.innerHTML = '<i class="far fa-clock"></i> 未扫描';
+            countBag1Element.textContent = "0";
+            countBag2Element.textContent = "0";
+            lastBag1Element.innerHTML = '<i class="far fa-clock"></i> 未扫描';
+            lastBag2Element.innerHTML = '<i class="far fa-clock"></i> 未扫描';
             
-            statusElement.textContent = "所有计数已重置为0";
+            statusElement.textContent = "所有计数和记录已重置";
             counterElement.classList.add('pulse');
             setTimeout(() => {
                 counterElement.classList.remove('pulse');
